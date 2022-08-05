@@ -1,16 +1,27 @@
-from collections import defaultdict
+from os import environ
+from pathlib import Path
 
-from flask import Flask, request
-from flask.json import jsonify
+from flask import Flask, request, Response
+
+WPAP_DIR = Path(environ.get("WPAP_DIR", "./wpap_cache"))
+WPAP_DIR.mkdir(exist_ok=True, parents=True)
 
 app = Flask("WindowPositionAssistantProxy")
-proxy_storage = defaultdict(list)
 
 
-@app.route("/<int:proxy_id>", methods=["GET", "POST"])
+@app.route("/<proxy_id>", methods=["GET", "POST"])
 def proxy(proxy_id):
     if request.method == "GET":
-        return jsonify(proxy_storage[proxy_id])
+        try:
+            response = (WPAP_DIR / proxy_id).read_text()
+        except IOError:
+            response = "[]"
+
+        return Response(
+            response=response,
+            status=200,
+            mimetype="application/json",
+        )
     elif request.method == "POST":
-        proxy_storage[proxy_id] = request.get_json(force=True)
+        (WPAP_DIR / proxy_id).write_text(request.get_data(as_text=True))
         return ""
